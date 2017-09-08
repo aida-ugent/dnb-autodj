@@ -4,6 +4,8 @@ import yodel.filter	# For low pass and high pass bench filters
 import scipy.signal
 import tracklister
 
+import librosa.effects
+
 import time
 
 import logging
@@ -118,14 +120,14 @@ class TransitionProfile:
 		for i, v in low_profile:
 			if not i_prev <= i:
 				raise Exception ('Profiles must be increasing in downbeat indices')	
-			if not (v >= 0.0 and v <= 1.0):
+			if not (v >= -1.0 and v <= 1.0):
 				raise Exception ('Profile values must be between 0.0 and 1.0')	
 			i_prev = i
 		i_prev = -1
 		for i, v in high_profile:
 			if not i_prev <= i:
 				raise Exception ('Profiles must be increasing in downbeat indices')
-			if not (v >= 0.0 and v <= 1.0):
+			if not (v >= -1.0 and v <= 1.0):
 				raise Exception ('Profile values must be between 0.0 and 1.0')
 			i_prev = i
 		self.len_dbeats = len_dbeats
@@ -179,31 +181,31 @@ class CrossFade:
 			
 			time_points = [0, P, P, L]
 			master_vol_profile = zip(time_points, 	[1.0, 1.0, 0.8, 0.0])
-			master_low_profile = zip(time_points, 	[1.0, 1.0, 0.0, 0.0])
-			master_high_profile = zip(time_points, 	[1.0, 1.0, 0.0, 0.0])
+			master_low_profile = zip(time_points, 	[1.0, 1.0, -1.0, -1.0])
+			master_high_profile = zip(time_points, 	[1.0, 1.0, -1.0, -1.0])
 			slave_vol_profile = zip(time_points, 	[0.0, 0.8, 1.0, 1.0])
-			slave_low_profile = zip(time_points, 	[0.0, 0.0, 1.0, 1.0])
-			slave_high_profile = zip(time_points, 	[0.0, 0.0, 1.0, 1.0])
+			slave_low_profile = zip(time_points, 	[-1.0, -1.0, 1.0, 1.0])
+			slave_high_profile = zip(time_points, 	[-1.0, -1.0, 1.0, 1.0])
 		
 		else:
-			if fade_type == tracklister.TYPE_DOUBLE_DROP or fade_type == tracklister.TYPE_ROLLING:
+			if fade_type == tracklister.TYPE_ROLLING or fade_type == tracklister.TYPE_DOUBLE_DROP:
 				time_points = [0, 1, P/2, P, P+1, P+(L-P)/2, L]
 				master_vol_profile = zip(time_points, 	[1.0, 1.0, 1.0, 1.0, 0.8, 0.8, 0.0])
-				master_low_profile = zip(time_points, 	[1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
-				master_high_profile = zip(time_points, 	[1.0, 1.0, 1.0, 1.0, 0.2, 0.0, 0.0])
+				master_low_profile = zip(time_points, 	[1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0])
+				master_high_profile = zip(time_points, 	[1.0, 1.0, 1.0, 1.0, 0.2, -1.0, -1.0])
 				slave_vol_profile = zip(time_points, 	[0.0, 0.2, 0.8, 0.8, 1.0, 1.0, 1.0])
-				slave_low_profile = zip(time_points, 	[0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0])
-				slave_high_profile = zip(time_points, 	[0.0, 0.0, 0.0, 0.2, 1.0, 1.0, 1.0])
+				slave_low_profile = zip(time_points, 	[-1.0, -1.0, -1.0, -1.0, 1.0, 1.0, 1.0])
+				slave_high_profile = zip(time_points, 	[-1.0, -1.0, -1.0, 0.2, 1.0, 1.0, 1.0])
 			else:
 				P = self.crossover_point
 				L = len_dbeats
 				time_points = [0, P/2, P, P, P+(L-P)/2, L]
 				master_vol_profile = zip(time_points, 	[1.0, 1.0, 1.0, 1.0, 0.7, 0.0])
-				master_low_profile = zip(time_points, 	[1.0, 1.0, 1.0, 0.3, 0.0, 0.0])
-				master_high_profile = zip(time_points, 	[1.0, 1.0, 1.0, 0.3, 0.0, 0.0])
+				master_low_profile = zip(time_points, 	[1.0, 1.0, 1.0, 0.3, -1.0, -1.0])
+				master_high_profile = zip(time_points, 	[1.0, 1.0, 1.0, 0.3, -1.0, -1.0])
 				slave_vol_profile = zip(time_points, 	[0.0, 0.7, 1.0, 1.0, 1.0, 1.0])
-				slave_low_profile = zip(time_points, 	[0.0, 0.0, 0.3, 1.0, 1.0, 1.0])
-				slave_high_profile = zip(time_points, 	[0.0, 0.0, 0.3, 1.0, 1.0, 1.0])
+				slave_low_profile = zip(time_points, 	[-1.0, -1.0, 0.3, 1.0, 1.0, 1.0])
+				slave_high_profile = zip(time_points, 	[-1.0, -1.0, 0.3, 1.0, 1.0, 1.0])
 				
 		master_profile = TransitionProfile(self.len_dbeats, master_vol_profile, master_low_profile, master_high_profile)
 		slave_profile = TransitionProfile(self.len_dbeats, slave_vol_profile, slave_low_profile, slave_high_profile)

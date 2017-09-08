@@ -7,7 +7,12 @@ from sklearn import preprocessing
 NUMBER_BANDS = 12
 NUMBER_COEFF = 5
 
-def feature_allframes(audio, beats, frame_indexer = None):
+def feature_allframes(song, frame_indexer = None):
+	
+	audio = song.audio
+	beats = song.beats
+	fft_mag = song.fft_mag_1024_512
+	fft_phase = song.fft_phase_1024_512
 	
 	# Initialise the algorithms
 	w = Windowing(type = 'hann')

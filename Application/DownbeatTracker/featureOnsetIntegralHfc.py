@@ -11,30 +11,18 @@ from sklearn import preprocessing
 '''
 
 
-def feature_allframes(audio, beats, frame_indexer = None):
+def feature_allframes(song, frame_indexer = None):
 	
-	# Initialise the algorithms	
-	FRAME_SIZE = 1024
-	HOP_SIZE = 512
-	spec = Spectrum(size = FRAME_SIZE)
-	w = Windowing(type = 'hann')
-	fft = np.fft.fft
-
-	od_csd = OnsetDetection(method = 'complex')
+	audio = song.audio
+	beats = song.beats
+	fft_result_mag = song.fft_mag_1024_512
+	fft_result_ang = song.fft_phase_1024_512
+	
 	od_hfc = OnsetDetection(method = 'hfc')
-
 	pool = Pool()
-	
-	# Calculate onset detection curve on audio
-	for frame in FrameGenerator(audio, frameSize = FRAME_SIZE, hopSize = HOP_SIZE):
-		pool.add('windowed_frames', w(frame))
-		
-	fft_result = fft(pool['windowed_frames']).astype('complex64')
-	fft_result_mag = np.absolute(fft_result)
-	fft_result_ang = np.angle(fft_result)
+	HOP_SIZE = 512
 
 	for mag,phase in zip(fft_result_mag, fft_result_ang):
-		#pool.add('onsets.complex', od_csd(mag, phase))
 		pool.add('onsets.flux', od_hfc(mag, phase))
 	
 	# Normalize and half-rectify onset detection curve
@@ -42,8 +30,11 @@ def feature_allframes(audio, beats, frame_indexer = None):
 		return np.convolve(x, [1.0]*int(N), mode='same')/N
 		
 	novelty_mean = adaptive_mean(pool['onsets.flux'], 16.0)
-	novelty_hwr = (pool['onsets.flux'] - novelty_mean).clip(min=0)
+	novelty_hwr = (pool['onsets.flux'] - novelty_mean).clip(min=0)	
 	novelty_hwr = novelty_hwr / np.average(novelty_hwr)
+	
+	# Save the novelty function, as it is used later for song matching as well
+	song.onset_curve = novelty_hwr
 	
 	# For every frame in frame_indexer, 
 	if frame_indexer is None:

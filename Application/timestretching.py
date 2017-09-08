@@ -1,32 +1,58 @@
 import numpy as np
-from scipy import signal
+from scipy import signal, interpolate
+import librosa.effects as effects
+import librosa.decompose as decompose
+import librosa.core as core
+import librosa.util
 
 def crossfade(audio1, audio2, length = None):
 	'''Crossfade two audio clips, using linear fading by default.
 	Assumes MONO input'''
-	# TODO add checks that start1/start2 don't go out of bounds
-	# TODO read about fading types
 	if length is None:
 		length = min(audio1.size, audio2.size)
 	profile = ((np.arange(0.0, length)) / length)
 	output = (audio1[:length] * profile[::-1]) + (audio2[:length] * profile)
 	return output[:length]
+	
+def time_stretch_hpss(audio, f):
+	
+	if f == 1.0:
+		return audio
+	
+	stft = core.stft(audio)
+	
+	# Perform HPSS
+	stft_harm, stft_perc = decompose.hpss(stft,kernel_size=31) # original kernel size 31
+	
+	# OLA the percussive part
+	y_perc = librosa.util.fix_length(core.istft(stft_perc, dtype=audio.dtype), len(audio))
+	y_perc = time_stretch_sola(y_perc,f)
+	
+	#~ # Phase-vocode the harmonic part
+	#~ stft_stretch = core.phase_vocoder(stft_harm, 1.0/f)
+	#~ # Inverse STFT of harmonic
+	#~ y_harm = librosa.util.fix_length(core.istft(stft_stretch, dtype=y_perc.dtype), len(y_perc))
+	y_harm = librosa.util.fix_length(core.istft(stft_harm, dtype=audio.dtype), len(audio))
+	y_harm = librosa.util.fix_length(time_stretch_sola(core.istft(stft_harm, dtype=audio.dtype), f, wsola = True), len(y_perc))
+	
+	# Add them together
+	return y_harm + y_perc
 
-def time_stretch_sola(audio, f, bpm, phase, sample_rate = 44100, fragment_s = 0.1, overlap_s = .020, seek_window_s = .015):
+def time_stretch_sola(audio, f, sample_rate = 44100, wsola = False):
 	# Assumes mono 44100 kHz audio (audio.size)
 	
 	if f == 1.0:
 		return audio
 	
 	# Initialise time offsets and window lengths
-	frame_len_1 = 4410								# Length of a fragment, including overlap at one side; about 100 ms, see above
-	overlap_len = 252								# About 8 ms
+	frame_len_1 = 4410 if wsola else 4410/8			# Length of a fragment, including overlap at one side; about 100 ms; shouldn't be longer because length of a 16th note is about this period at 175 BPM: otherwise it won't be possible to copy without doubling transients 
+	overlap_len = frame_len_1/8						# About 8 ms
 	frame_len_2 = frame_len_1 + overlap_len			# Length of a fragment, including overlap at both sides
 	frame_len_0 = frame_len_1 - overlap_len			# Length of a fragment, excluding overlaps (unmixed part)
 	next_frame_offset_f =  frame_len_1 / f			# keep as a float to prevent rounding errors
 	next_frame_offset = int(next_frame_offset_f) 	# keep as a float to prevent rounding errors
-	seek_win_len_half = int(400)/2 					# window total ~ 21,666 ms
-
+	seek_win_len_half = frame_len_1/16				# window total ~ 21,666 ms
+	
 	def find_matching_frame(frame, theor_center):
 		'''
 		Find a frame in the neighbourhood of theor_center that maximizes the autocorrelation with the given frame as much as possible.
@@ -37,8 +63,10 @@ def time_stretch_sola(audio, f, bpm, phase, sample_rate = 44100, fragment_s = 0.
 		# minus len(frame) and not overlap_len to avoid errors when frame is at the very end of the input audio, and is not a full overlap part anymore
 		cur_win_min = theor_center - seek_win_len_half
 		cur_win_max = theor_center + seek_win_len_half
-		correlation = signal.fftconvolve(audio[cur_win_min:cur_win_max], frame[::-1], mode='same') # Faster than np.correlate! cf http://scipy-cookbook.readthedocs.io/items/ApplyFIRFilter.html
-		return theor_center  + (np.argmax(correlation) - seek_win_len_half)
+		correlation = signal.fftconvolve(audio[cur_win_min:cur_win_max+len(frame)], frame[::-1], mode='valid') # Faster than np.correlate! cf http://scipy-cookbook.readthedocs.io/items/ApplyFIRFilter.html
+		optimum = np.argmax(correlation[:2*seek_win_len_half])
+		
+		return theor_center  + (optimum - seek_win_len_half)
 
 	# --------------Algorithm------------------
 	# Initialise output buffer
@@ -67,8 +95,11 @@ def time_stretch_sola(audio, f, bpm, phase, sample_rate = 44100, fragment_s = 0.
 		# Look for the next frame that matches best when overlapped
 		# Method 2: pure WSOLA: match the next frame in the INPUT audio as closely as possible, since this frame is the natural follower of the original
 		frame_to_match = audio[in_ptr + frame_len_0 : in_ptr + frame_len_0 + frame_len_1]
-		match_ptr = find_matching_frame(frame_to_match, int(in_ptr_th_f + next_frame_offset_f) - overlap_len)
-		
+		if wsola:
+			match_ptr = find_matching_frame(frame_to_match, int(in_ptr_th_f + next_frame_offset_f) - overlap_len)
+		else:
+			match_ptr = int(in_ptr_th_f + next_frame_offset_f) - overlap_len
+			
 		frame1_overlap = audio[in_ptr + frame_len_0 : in_ptr + frame_len_1]
 		frame2_overlap = audio[match_ptr : match_ptr + overlap_len]
 		
@@ -81,3 +112,37 @@ def time_stretch_sola(audio, f, bpm, phase, sample_rate = 44100, fragment_s = 0.
 		in_ptr_th_f += next_frame_offset_f
 		
 	return np.array(output).astype('single')
+	
+def time_stretch_and_pitch_shift(audio, f, semitones=0):
+	# Stretch the audio by factor f in speed and perform a pitch shift of N semitones
+	semitone_factor = np.power(2.0, semitones/12.0)
+	
+	#~ audio = time_stretch_sola(audio, f*semitone_factor)
+	audio = time_stretch_hpss(audio, f*semitone_factor)
+	
+	if semitones != 0:
+		x = range(audio.size)
+		x_new = np.linspace(0,audio.size-1,int(audio.size / semitone_factor))
+		f = interpolate.interp1d(x, audio, kind='quadratic')
+		audio = f(x_new)
+	return audio
+	
+if __name__ == '__main__':
+	
+	import song
+	import sys
+	
+	s = song.Song(sys.argv[1])
+	s.open()
+	s.openAudio()
+	
+	audio = time_stretch_and_pitch_shift(s.audio, s.tempo/175.0, semitones=2)
+	
+	#~ from librosa.effects import hpss
+	#~ audio, audio2 = hpss(s.audio)
+	
+	from essentia import *
+	from essentia.standard import *
+	writer = MonoWriter(filename='blub.wav')
+	writer(audio.astype('single'))
+	

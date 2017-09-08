@@ -18,6 +18,10 @@ class BeatTracker:
 		self.phase = None
 		self.beats = None
 		
+		self.onset_curve = None
+		self.fft_mag_1024_512 = None # FFT magnitude on windows of 1024 samples, 512 hop size
+		self.fft_phase_1024_512 = None # FFT phase on windows of 1024 samples, 512 hop size
+		
 	def getBpm(self):
 		'''Returns the BPM for the analysed audio.
 		
@@ -45,6 +49,16 @@ class BeatTracker:
 			raise Exception('No beats detected yet, you must run the BeatTracker first!')
 		return self.beats
 		
+	def getOnsetCurve(self):
+		'''Returns an array of onset values locations for the analysed audio.
+		
+		:returns Onset detection curve as a float array
+		'''
+		if self.onset_curve is None:
+			raise Exception('No onset detection curve calculated yet, you must run the BeatTracker first!')
+		return self.onset_curve
+		
+		
 	def run(self, audio):	
 			
 		def numFramesPerBeat(bpm):
@@ -70,6 +84,8 @@ class BeatTracker:
 		fft_result = fft(pool['audio.windowed_frames']).astype('complex64')
 		fft_result_mag = np.absolute(fft_result)
 		fft_result_ang = np.angle(fft_result)
+		self.fft_mag_1024_512 = fft_result_mag
+		self.fft_phase_1024_512 = fft_result_ang
 		
 		for mag,phase in zip(fft_result_mag, fft_result_ang):
 			pool.add('onsets.complex', od_flux(mag, phase))
@@ -107,6 +123,7 @@ class BeatTracker:
 		self.bpm = bpm
 		self.phase = phase
 		self.beats = beats
+		self.onset_curve = novelty_hwr
 
 if __name__ == '__main__':
 	

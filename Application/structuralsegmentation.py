@@ -4,7 +4,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
-import scipy
+import scipy.signal
 
 essentia.log_active = False
 
@@ -34,7 +34,11 @@ def adaptive_mean(x, N):
 
 class StructuralSegmentator:
 	
-	def analyse(self, audio_in, downbeats, tempo):
+	def analyse(self, song): #(audio_in, downbeats, tempo):
+		
+		audio_in = song.audio
+		downbeats = song.downbeats
+		tempo = song.tempo
 		
 		# Initialize algorithm objects
 		pool = Pool()
@@ -169,19 +173,34 @@ class StructuralSegmentator:
 		segment_indices.extend([db+2 for db in highest_peaks_db_indices if (db + 2 - most_likely_8db_index) % 8 == 0])
 		segment_indices = np.unique(sorted(segment_indices))
 
-		# Determine the type of segment boundary: HL, LH, same
+		# Determine the type of segment
 		adaptive_mean_rms = adaptive_mean(pool['lowlevel.rms'], 64) # Mean of rms in window of [-4 dbeats, + 4 dbeats]
 		mean_rms = np.mean(adaptive_mean_rms)
+		adaptive_mean_odf = adaptive_mean(song.onset_curve, int((44100*60/tempo)/512) * 4) # -4 dbeats, +4 dbeats
+		mean_odf = np.mean(adaptive_mean_odf)
+		
+		#~ import matplotlib.pyplot as plt
+		#~ plt.plot(np.linspace(0.0,1.0,adaptive_mean_rms.size), adaptive_mean_rms / max(adaptive_mean_rms),c='r')
+		#~ plt.plot(np.linspace(0.0,1.0,adaptive_mean_odf.size), adaptive_mean_odf / max(adaptive_mean_odf),c='b')
+		#~ plt.plot(np.linspace(0.0,1.0,song.onset_curve.size), song.onset_curve / (2*max(song.onset_curve)),c='grey')
+		#~ plt.axhline(mean_rms / max(adaptive_mean_rms),c='r')
+		#~ plt.axhline(mean_odf / max(adaptive_mean_odf),c='b')
+		#~ plt.show()
+		
 		segment_types = [] 
 		
 		def getSegmentType(dbindex):
+			
 			if dbindex >= last_boundary:
 				return 'L'
-			before_index = int((dbindex - 4) * 4 * 60.0/tempo * 44100.0/HOP_SIZE)	# 2 downbeats before the fade
-			after_index = int((dbindex + 4) * 4 * 60.0/tempo * 44100.0/HOP_SIZE)	# 2 downbeats after the fade
-			rms_before = adaptive_mean_rms[before_index] / mean_rms
+				
+			after_index = int(int((dbindex + 4) * 4 * 60.0/tempo * 44100.0)/HOP_SIZE)	# 2 downbeats after the fade
 			rms_after = adaptive_mean_rms[after_index] / mean_rms
-			return 'L' if rms_after < 1.0 else 'H'			
+			
+			after_index = int(int((dbindex + 4) * 4 * 60.0/tempo * 44100.0)/512)	# 32 + downbeat index (running average range is [-32,32])
+			odf_after = adaptive_mean_odf[after_index] / mean_odf
+						
+			return 'H' if rms_after >= 1.0 and odf_after >= 1.0 else 'L'			
 		
 		for segment in segment_indices:
 			segment_types.append(getSegmentType(segment))

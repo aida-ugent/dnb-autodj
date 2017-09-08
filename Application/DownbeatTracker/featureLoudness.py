@@ -3,7 +3,10 @@ from essentia import *
 from essentia.standard import Windowing, Loudness
 from sklearn import preprocessing
 
-def feature_allframes(audio, beats, frame_indexer = None):
+def feature_allframes(song, frame_indexer = None):
+	
+	audio = song.audio
+	beats = song.beats
 	
 	# Initialise the algorithms
 	w = Windowing(type = 'hann')

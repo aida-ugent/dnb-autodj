@@ -45,31 +45,35 @@ class DownbeatTracker:
 				break
 				
 		return start, end
-	
-	def getFeaturesForAudio(self, audio, beats):
+		
+	def getFeaturesForAudio(self, song):
+		
+		audio = song.audio
+		beats = song.beats
 		
 		FRAME_INDEXER_MIN = 4
-		FRAME_INDEXER_MAX = len(beats) - 9
+		FRAME_INDEXER_MAX = len(beats) - 9 # -9 instead of -8 to prevent out-of-bound in featureLoudness
 		trim_start_beat, trim_end_beat = self.trimAudio(audio, beats)
 		indexer_start = max(FRAME_INDEXER_MIN, trim_start_beat)
 		indexer_end = min(FRAME_INDEXER_MAX, trim_end_beat)
-		frame_indexer = range(indexer_start, indexer_end) # -9 instead of -8 to prevent out-of-bound in featureLoudness
-		
+		frame_indexer = range(indexer_start, indexer_end) 
+				
 		# Calculate the features on every frame in the audio
 		features_cur_file = None
 		for module in feature_modules:
-			absolute_feature_submatrix = module.feature_allframes(audio, beats, frame_indexer)
+			absolute_feature_submatrix = module.feature_allframes(song, frame_indexer)
 			if features_cur_file is None:
 				features_cur_file = absolute_feature_submatrix
 			else:
 				features_cur_file = np.append(features_cur_file, absolute_feature_submatrix, axis=1)
 		return features_cur_file, trim_start_beat
 
-	def track(self, audio, beats):
+	def track(self, song):
 		'''
 			Track the downbeats of the given audio file
 		'''
-		features, trim_start_beat = self.getFeaturesForAudio(audio, beats)
+		
+		features, trim_start_beat = self.getFeaturesForAudio(song)
 		probas = self.model.predict_log_proba(features)
 			
 		sum_log_probas = np.array([[0,0,0,0]], dtype='float64')		
@@ -84,4 +88,6 @@ class DownbeatTracker:
 		# The audio got trimmed, so make sure the downbeat index is offset by the correct amount!
 		downbeatIndex = ((4-np.argmax(sum_log_probas)) + trim_start_beat) % 4
 		
-		return beats[downbeatIndex::4]
+		print trim_start_beat, sum_log_probas, downbeatIndex, trim_start_beat
+		
+		return song.beats[downbeatIndex::4]

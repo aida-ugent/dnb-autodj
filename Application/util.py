@@ -1,4 +1,5 @@
 import os, csv
+import numpy as np
 from essentia import *
 from essentia.standard import *
 
@@ -7,6 +8,12 @@ ANNOT_DOWNB_PREFIX = 'downbeats_'
 ANNOT_BEATS_PREFIX = 'beats_'
 ANNOT_SEGMENT_PREFIX = 'segments_'
 ANNOT_GAIN_PREFIX = 'gain_'
+ANNOT_KEY_PREFIX = 'key_'
+ANNOT_SPECTRALCONTRAST_PREFIX = 'specctrst_'
+ANNOT_SINGINGVOICE_PREFIX = 'singing_'
+ANNOT_ODF_HFC_PREFIX = 'odf_hfc_'
+
+ANNOT_MARKED_PREFIX = '_fix_annotations_'
 
 import logging
 logger = logging.getLogger('colorlogger')
@@ -21,7 +28,10 @@ def loadCsvAnnotationFile(directory, prefix):
 			reader = csv.reader(csvfile, delimiter = ' ')
 			for row in reader:
 				key, value = row
-				value = float(value)
+				try:
+					value = float(value)
+				except ValueError:
+					pass
 				result[key] = value
 	except IOError as e:
 		logger.debug('Csv annotation file not found, silently ignoring exception ' + str(e))
@@ -30,7 +40,24 @@ def loadCsvAnnotationFile(directory, prefix):
 def writeCsvAnnotation(directory, prefix, song_title, value):
 	with open(os.path.join(directory, ANNOT_SUBDIR, prefix + '.csv'), 'a+') as csvfile:
 		writer = csv.writer(csvfile, delimiter = ' ')
-		writer.writerow([song_title, '{:.9f}'.format(value)])
+		if type(value) is float:
+			writer.writerow([song_title, '{:.9f}'.format(value)])
+		else:
+			writer.writerow([song_title, '{:}'.format(value)])
+			
+def deleteCsvAnnotation(directory, prefix, song_title):
+	# Delete one line in the CSV annotation file.
+	# Warning: this will not work with very big files, because they won't fit in RAM
+	titles = []
+	with open(os.path.join(directory, ANNOT_SUBDIR, prefix + '.csv'), 'r+') as csvfile:
+		reader = csv.reader(csvfile, delimiter = ' ')
+		for line in reader:
+			titles.append(line)
+	with open(os.path.join(directory, ANNOT_SUBDIR, prefix + '.csv'), 'w+') as csvfile:
+		writer = csv.writer(csvfile, delimiter = ' ')
+		for line in titles:
+			if line[0] != song_title:
+				writer.writerow(line)
 
 def loadAnnotationFile(directory, song_title, prefix):
 	'''
@@ -75,3 +102,19 @@ def writeAnnotFile(directory, song_title, prefix, array, values_dict = {}):
 				f.write('\n')
 			else:
 				f.write("{:.9f}".format(value) + '\n')
+
+def loadBinaryAnnotFile(directory, song_title, prefix):
+	input_file = pathAnnotationFile(directory, song_title, prefix)
+	result = []
+	if os.path.exists(input_file):
+		with open(input_file) as f:
+			result = np.load(f)
+	else:
+		raise UnannotatedException('Attempting to load annotations of unannotated audio' + input_file + '!')
+	return result
+
+def writeBinaryAnnotFile(directory, song_title, prefix, array):
+	output_file = pathAnnotationFile(directory, song_title, prefix)	
+	with open(output_file, 'wb+') as f:
+		# Write the annotations
+		np.save(f, array)
