@@ -6,6 +6,7 @@ The system is described in more detail in the paper _Vande Veire, Len and De Bie
 ## Installing dependencies
 
 The automatic DJ application has been developed for python 2.7.12 and tested on Ubuntu 16.04 LTS. It depends on the following python packages:
+
 * colorlog (2.10.0)
 * Essentia
 * joblib (0.11)
@@ -28,7 +29,7 @@ The application is controlled using commands. The following commands are availab
 
 * `loaddir <directory>` : Add the _.wav_ and _.mp3_ audio files in the specified directory to the pool of available songs.
 * `annotate` : Annotate all the files in the pool of available songs that are not annotated yet. Note that this might take a while, and that in the current prototype this can only be interrupted by forcefully exiting the program (using the key combination `Ctrl+C`).
-* `play` : Start a DJ mix. This command must be called after using the \texttt{loaddir} command on at least one directory with some annotated songs. Also used to continue playing after pausing.
+* `play` : Start a DJ mix. This command must be called after using the `loaddir` command on at least one directory with some annotated songs. Also used to continue playing after pausing.
 * `pause` : Pause the DJ mix.
 * `stop` : Stop the DJ mix.
 * `skip` : Skip to the next important boundary in the mix. This skips to either the beginning of the next crossfade, the switch point of the current crossfade or the end of the current crossfade, whichever comes first.
