@@ -1,5 +1,0 @@
-These files were an initial attempt to get existing SOTA beat trackers working.
-However, as described in the dissertation, these did not work as they were too inaccurate.
-Scripts are left here as a reference, but no guarantee that they still work.
-
-OldEvaluation/ contains a script to compare two beat annotation files.
