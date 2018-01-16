@@ -1,7 +1,7 @@
 # Auto-DJ
 This repository contains the source code of the automatic DJ system developed by Len Vande Veire, under the supervision of prof. Tijl De Bie. It has been designed for Drum and Bass music, a sub-genre of Electronic Dance Music.
 
-The system is described in more detail in the paper _Vande Veire, Len and De Bie, Tijl, "From raw audio to a seamless mix: an artificial intelligence approach to creating an automated DJ system, 2018_.
+The system is described in more detail in the paper _Vande Veire, Len and De Bie, Tijl, "From raw audio to a seamless mix: an artificial intelligence approach to creating an automated DJ system (2018)_.
 
 ## Installing dependencies
 
@@ -17,7 +17,7 @@ The automatic DJ application has been developed for python 2.7.12 and tested on 
 * scipy (0.19.0)
 * yodel (0.3.0)
 
-Installing these packages can be installed using e.g. the `pip` package manager or using `apt-get` on Ubuntu. Installation instructions for the Essentia library can be found on [http://essentia.upf.edu/documentation/installing.html](http://essentia.upf.edu/documentation/installing.html).
+These packages can be installed using e.g. the `pip` package manager or using `apt-get` on Ubuntu. Installation instructions for the Essentia library can be found on [http://essentia.upf.edu/documentation/installing.html](http://essentia.upf.edu/documentation/installing.html).
 
 ## Running the application
 
