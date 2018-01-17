@@ -1,3 +1,7 @@
+# Copyright 2017 Len Vande Veire, IDLab, Department of Electronics and Information Systems, Ghent University
+# This file is part of the source code for the Auto-DJ research project, published in Vande Veire, Len, and De Bie, Tijl, "From raw audio to a seamless mix: an artificial intelligence approach to creating an automated DJ system." EURASIP,  2018 (submitted)
+# Released under AGPLv3 license.
+
 '''	
 	Standalone GUI tool to fix the annotations of songs.
 	When the master song in the applications has a wrong annotation, use the 'mark' command to add it to the marked list.

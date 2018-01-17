@@ -38,3 +38,8 @@ The application is controlled using commands. The following commands are availab
 * `debug` : Toggle debug information output. This command must be used before starting playback, or it will have no effect.
 
 To exit the application, use the `Ctrl+C` key combination.
+
+## Copyright information
+Copyright 2017 Len Vande Veire, IDLab, Department of Electronics and Information Systems, Ghent University
+This file is part of the source code for the Auto-DJ research project, published in Vande Veire, Len, and De Bie, Tijl, "From raw audio to a seamless mix: an artificial intelligence approach to creating an automated DJ system." EURASIP,  2018 (submitted)
+Released under AGPLv3 license.
